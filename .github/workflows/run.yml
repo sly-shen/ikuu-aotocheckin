@@ -1,10 +1,10 @@
 name: iKuuu Auto Checkin
 
 on:
-  workflow_dispatch:      # 允许手动触发
+  workflow_dispatch:
   schedule:
-  #  - cron: '30 0 * * *'  # 每天 UTC 0:30 (北京时间 8:30) 运行
-    - cron: '*/5 * * * *'  # 每五分钟运行一次
+    - cron: '*/5 * * * *'
+
 
 jobs:
   daily_job:

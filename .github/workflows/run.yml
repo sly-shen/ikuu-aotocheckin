@@ -1,31 +1,23 @@
-name: iKuuu Auto Checkin
-
+name: Daily Checkin
 on:
-  workflow_dispatch:
+  workflow_dispatch: 
   schedule:
-    - cron: '48 01 * * *'
-
-
-
+    - cron: '17 22 * * *' # 避开高峰期，北京时间 6:17 运行
 jobs:
-  daily_job:
+  run_job:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: 下载代码
-        uses: actions/checkout@v3
-        
-      - name: 安装 Python 环境
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-          
-      - name: 安装依赖库
-        run: pip install requests
-        
-      - name: 运行签到脚本
+      - name: Install dependencies
+        run: pip install requests pyotp
+      - name: Run script
         env:
-          IKUUU_COOKIE: ${{ secrets.IKUUU_COOKIE }}
+          IKUUU_EMAIL: ${{ secrets.IKUUU_EMAIL }}
+          IKUUU_PASSWORD: ${{ secrets.IKUUU_PASSWORD }}
+          IKUUU_2FA_SECRET: ${{ secrets.IKUUU_2FA_SECRET }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
         run: python main.py

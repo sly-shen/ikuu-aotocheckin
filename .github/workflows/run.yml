@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests pyotp playwright playwright-stealth
+          pip install requests pyotp playwright playwright-stealth==1.0.6
 
       - name: Install Playwright Browsers
         # 核心改动：使用 python 自己的安装器

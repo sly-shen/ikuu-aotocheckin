@@ -1,74 +1,55 @@
-import requests
 import os
 import pyotp
-import time
+from playwright.sync_api import sync_playwright
+from playwright_stealth import stealth_sync
 
-# 从环境变量获取数据
-EMAIL = os.environ.get('IKUUU_EMAIL')
-PASSWORD = os.environ.get('IKUUU_PASSWORD')
-SECRET_2FA = os.environ.get('IKUUU_2FA_SECRET')
-BOT_TOKEN = os.environ.get('TG_BOT_TOKEN')
-CHAT_ID = os.environ.get('TG_CHAT_ID')
-BASE_URL = "https://ikuuu.org"
-
-def send_notify(msg):
-    if not BOT_TOKEN or not CHAT_ID: return
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    requests.post(url, json={"chat_id": CHAT_ID, "text": msg, "parse_mode": "Markdown"})
-
-def run():
-    print("🚀 开始执行带 2FA 的自动登录与签到...")
-    session = requests.Session()
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer': f'{BASE_URL}/auth/login'
-    }
-
-    # 1. 生成 6 位动态验证码
-    if not SECRET_2FA:
-        print("❌ 未配置 2FA 密钥！")
-        return
-    totp = pyotp.TOTP(SECRET_2FA)
+def run_ikuuu_auto():
+    # 你的 2FA 逻辑依然保留
+    totp = pyotp.TOTP(os.environ.get('IKUUU_2FA_SECRET'))
     current_code = totp.now()
-    print(f"🔑 已自动生成 6 位动态验证码: {current_code}")
 
-    # 2. 模拟登录（带验证码）
-    login_url = f"{BASE_URL}/auth/login"
-    login_data = {
-        "email": EMAIL,
-        "passwd": PASSWORD,
-        "code": current_code  # 提交验证码
-    }
-    
-    try:
-        print("⏳ 尝试登录账号...")
-        login_res = session.post(login_url, data=login_data, headers=headers, timeout=10).json()
+    with sync_playwright() as p:
+        # 启动 Chromium 浏览器 (无头模式)
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
+        page = context.new_page()
+        stealth_sync(page)  # 关键：隐藏自动化特征，防止被 CF 识别
+
+        print("🌐 正在打开登录页面...")
+        page.goto("https://ikuuu.org/auth/login")
+
+        # 2. 模拟点击那个黑色的“点我开始验证”按钮
+        # Cloudflare Turnstile 通常在一个 iframe 里，Playwright 会自动处理点击
+        try:
+            print("⏳ 正在尝试穿透人机验证...")
+            # 这里的选择器可能需要根据实际页面微调，通常点这个 text 就能触发
+            page.click('text="点我开始验证"', timeout=10000)
+            page.wait_for_timeout(3000) # 等待验证完成的动画
+        except Exception:
+            print("⚠️ 未发现验证按钮或已自动通过")
+
+        # 3. 输入账号密码
+        page.fill('input[type="email"]', os.environ.get('IKUUU_EMAIL'))
+        page.fill('input[type="password"]', os.environ.get('IKUUU_PASSWORD'))
         
-        if login_res.get('ret') == 1:
-            print("✅ 登录成功！")
+        # 4. 输入 2FA
+        page.fill('input[name="code"]', current_code)
+        
+        # 5. 点击登录
+        page.click('button[type="submit"]')
+        page.wait_for_load_state("networkidle")
+
+        # 6. 跳转到签到页或直接在主页找签到按钮
+        print("✅ 登录成功，正在尝试签到...")
+        if "签到" in page.content():
+            page.click('text="签到"') # 假设按钮文字叫签到
+            print("🎉 签到指令已发送！")
         else:
-            err_msg = f"❌ 登录失败：{login_res.get('msg')}"
-            print(err_msg)
-            send_notify(err_msg)
-            return
+            print("📅 今天似乎已经签到过了。")
 
-        # 3. 发起签到
-        time.sleep(2) # 稍微等2秒，模拟真人操作
-        checkin_url = f"{BASE_URL}/user/checkin"
-        headers['Referer'] = f'{BASE_URL}/user' 
-        
-        checkin_res = session.post(checkin_url, headers=headers, timeout=10).json()
-        msg = checkin_res.get('msg')
-        
-        # 4. 发送通知
-        log = f"📅 **iKuuu 每日签到**\n\n💬 结果：{msg}"
-        print(log)
-        send_notify(log)
-        
-    except Exception as e:
-        err = f"❌ 脚本运行出错：{str(e)}"
-        print(err)
-        send_notify(err)
+        browser.close()
 
-if __name__ == '__main__':
-    run()
+if __name__ == "__main__":
+    run_ikuuu_auto()

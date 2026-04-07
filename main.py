@@ -1,7 +1,7 @@
 import os
 import pyotp
 from playwright.sync_api import sync_playwright
-from playwright_stealth import stealth_sync
+from playwright_stealth import stealth
 
 def run_ikuuu_auto():
     # 你的 2FA 逻辑依然保留
@@ -15,7 +15,7 @@ def run_ikuuu_auto():
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         )
         page = context.new_page()
-        stealth_sync(page)  # 关键：隐藏自动化特征，防止被 CF 识别
+        stealth(page)  # 关键：隐藏自动化特征，防止被 CF 识别
 
         print("🌐 正在打开登录页面...")
         page.goto("https://ikuuu.org/auth/login")

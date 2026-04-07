@@ -3,29 +3,28 @@ name: Daily Checkin
 on:
   workflow_dispatch: 
   schedule:
-    - cron: '17 22 * * *' # 避开高峰期，北京时间 6:17 运行
+    - cron: '17 22 * * *'
 
 jobs:
   run_job:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # 建议升级到 v4
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5 # 建议升级到 v5
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # 增加了 playwright 和 playwright-stealth
-          pip install requests pyotp playwright playwright-stealth 
+          pip install requests pyotp playwright playwright-stealth
 
       - name: Install Playwright Browsers
-        # 这是最关键的一步，安装 Chromium 浏览器及其依赖库
-        run: npx playwright install chromium --with-deps
+        # 核心改动：使用 python 自己的安装器
+        run: python -m playwright install chromium --with-deps
 
       - name: Run script
         env:
@@ -34,6 +33,4 @@ jobs:
           IKUUU_2FA_SECRET: ${{ secrets.IKUUU_2FA_SECRET }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-          # 如果你的代码里用到了 BASE_URL，也可以加在这里
-          BASE_URL: "https://ikuuu.org" 
         run: python main.py
